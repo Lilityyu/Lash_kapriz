@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Lash Kapriz</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --cream: #FDF0F5;
+    --blush: #FFD6E5;
+    --rose: #FFB5CE;
+    --deep: #434343;
+    --muted: #9A8E93;
+    --gold: #E890AD;
+    --bg: #F8F8F8;
+    --white: #FFFFFF;
+    --border: rgba(255, 181, 206, 0.35);
+    --shadow: 0 4px 24px rgba(67, 67, 67, 0.08);
+    --accent: #D4607E;
+    --soft: #FFF0F5;
+    --grey-light: #EFEFEF;
+    --grey-mid: #C8C0C4;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--deep);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--deep);
+    padding: 18px 20px 14px;
+    text-align: center;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .header-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 26px; font-weight: 300;
+    color: var(--cream); letter-spacing: 4px; text-transform: uppercase;
+  }
+  .header-sub {
+    font-size: 10px; color: var(--rose);
+    letter-spacing: 1.5px; text-transform: uppercase; margin-top: 3px; opacity: 0.9;
+  }
+  .header-addr { font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+  /* ── PAGES ── */
+  .page { display: none; padding: 0 0 110px; }
+  .page.active { display: block; }
+
+  /* ── BOTTOM NAV ── */
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--deep); display: flex;
+    padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); z-index: 100;
+  }
+  .nav-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    color: var(--muted); background: none; border: none;
+    font-family: 'DM Sans', sans-serif; font-size: 10px;
+    letter-spacing: 1px; text-transform: uppercase;
+    cursor: pointer; transition: color 0.2s; padding: 4px 0;
+  }
+  .nav-btn.active { color: var(--rose); }
+  .nav-btn.master-only { display: none; }
+  .nav-icon { font-size: 20px; line-height: 1; }
+
+  /* ── SECTION LABELS ── */
+  .section-label {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px; font-weight: 400; color: var(--deep);
+    padding: 22px 20px 6px; letter-spacing: 1px;
+  }
+  .section-sub { font-size: 12px; color: var(--muted); padding: 0 20px 12px; line-height: 1.4; }
+
+  /* ── CALENDAR ── */
+  .calendar-wrap {
+    margin: 0 16px; background: var(--white);
+    border-radius: 16px; box-shadow: var(--shadow); overflow: hidden;
+  }
+  .cal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px; background: var(--cream); border-bottom: 1px solid var(--border);
+  }
+  .cal-month { font-family: 'Cormorant Garamond', serif; font-size: 20px; color: var(--deep); letter-spacing: 1px; }
+  .cal-nav-btn {
+    background: none; border: none; color: var(--accent);
+    font-size: 20px; cursor: pointer; padding: 2px 10px; border-radius: 8px; transition: background 0.15s;
+  }
+  .cal-nav-btn:active { background: var(--border); }
+  .cal-weekdays { display: grid; grid-template-columns: repeat(7,1fr); background: var(--cream); padding: 6px 12px 4px; }
+  .cal-wd { text-align: center; font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; font-weight: 500; padding: 4px 0; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; padding: 8px 12px 14px; background: var(--white); }
+
+  .cal-day {
+    aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+    border-radius: 50%; font-size: 14px; cursor: pointer; transition: all 0.15s; position: relative;
+  }
+  .cal-day.empty { pointer-events: none; }
+  .cal-day.past { color: #CCC; pointer-events: none; }
+  .cal-day.today { color: var(--accent); font-weight: 600; }
+  .cal-day.today::after { content:''; position:absolute; bottom:2px; width:4px; height:4px; background:var(--accent); border-radius:50%; }
+  .cal-day.has-slots::before { content:''; position:absolute; top:2px; width:5px; height:5px; background:var(--gold); border-radius:50%; }
+  .cal-day.selected { background: var(--accent); color: var(--white) !important; }
+  .cal-day.selected::before { background: var(--white); }
+  .cal-day.selected::after { display: none; }
+  .cal-day:not(.empty):not(.past):hover { background: var(--blush); color: var(--deep); }
+
+  /* master calendar day */
+  .m-cal-day {
+    aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+    border-radius: 50%; font-size: 14px; cursor: pointer; transition: all 0.15s; position: relative;
+  }
+  .m-cal-day.empty { pointer-events: none; }
+  .m-cal-day.past { color: #CCC; pointer-events: none; }
+  .m-cal-day.today { color: var(--accent); font-weight: 600; }
+  .m-cal-day.has-slots::before { content:''; position:absolute; top:2px; width:5px; height:5px; background:#6DBF72; border-radius:50%; }
+  .m-cal-day.selected { background: var(--accent); color: white !important; }
+  .m-cal-day:not(.empty):not(.past):hover { background: var(--blush); }
+
+  /* ── SLOTS ── */
+  .slots-section { padding: 14px 16px 0; }
+  .slots-title { font-size: 11px; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 10px; }
+  .slots-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+  .slot-btn {
+    padding: 10px 4px; border-radius: 10px; border: 1.5px solid var(--border);
+    background: var(--white); font-family: 'DM Sans', sans-serif; font-size: 14px;
+    color: var(--deep); cursor: pointer; text-align: center; transition: all 0.15s;
+  }
+  .slot-btn.selected { background: var(--accent); border-color: var(--accent); color: var(--white); }
+  .slot-btn.booked { background: #F2F2F2; color: #CCC; border-color: #EEE; pointer-events: none; text-decoration: line-through; }
+  .no-slots-msg { grid-column:1/-1; text-align:center; padding:20px; color:var(--muted); font-size:13px; background:var(--white); border-radius:12px; }
+
+  /* ── SERVICES ── */
+  .services-grid { display: flex; flex-direction: column; gap: 9px; padding: 0 16px; }
+  .service-card {
+    background: var(--white); border-radius: 13px; padding: 13px 15px;
+    display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow);
+    cursor: pointer; border: 2px solid transparent; transition: all 0.15s;
+  }
+  .service-card.selected { border-color: var(--accent); background: var(--soft); }
+  .service-icon { font-size: 24px; width: 38px; text-align: center; flex-shrink: 0; }
+  .service-info { flex: 1; }
+  .service-name { font-family: 'Cormorant Garamond', serif; font-size: 18px; color: var(--deep); }
+  .service-desc { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .service-price { font-family: 'Cormorant Garamond', serif; font-size: 18px; color: var(--accent); font-weight: 500; }
+
+  /* ── INCLUDED BOX ── */
+  .included-box {
+    margin: 12px 16px 0;
+    background: linear-gradient(135deg, #FFF0F5 0%, #FFF8FB 100%);
+    border: 1px solid var(--border); border-radius: 14px; padding: 13px 15px;
+  }
+  .included-title { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent); font-weight: 600; margin-bottom: 9px; }
+  .included-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .included-tag { background: var(--white); border: 1px solid var(--border); border-radius: 20px; padding: 4px 10px; font-size: 12px; color: var(--deep); }
+
+  /* ── EXTRAS ── */
+  .extras-section { margin: 12px 16px 0; }
+  .extras-title { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-bottom: 10px; }
+  .extras-list { display: flex; flex-direction: column; gap: 8px; }
+  .extra-toggle {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--white); border: 1.5px solid var(--border);
+    border-radius: 12px; padding: 11px 13px; cursor: pointer; transition: all 0.15s;
+  }
+  .extra-toggle.active { border-color: var(--accent); background: var(--soft); }
+  .extra-left { display: flex; align-items: center; gap: 10px; }
+  .extra-name { font-size: 14px; color: var(--deep); font-weight: 500; }
+  .extra-price { font-size: 12px; color: var(--accent); }
+  .extra-check {
+    width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--grey-mid);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; color: transparent; transition: all 0.15s; flex-shrink: 0;
+  }
+  .extra-toggle.active .extra-check { background: var(--accent); border-color: var(--accent); color: white; }
+
+  /* ── FORM ── */
+  .form-section { padding: 0 16px; }
+  .input-group { margin-bottom: 13px; }
+  .input-label { font-size: 10px; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px; display: block; }
+  .input-field {
+    width: 100%; padding: 13px 15px; border: 1.5px solid var(--border); border-radius: 12px;
+    background: var(--white); font-family: 'DM Sans', sans-serif; font-size: 15px;
+    color: var(--deep); outline: none; transition: border-color 0.2s;
+  }
+  .input-field:focus { border-color: var(--accent); }
+
+  /* ── PUSH TOGGLE ── */
+  .push-toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--white); border-radius: 13px; padding: 13px 16px;
+    box-shadow: var(--shadow); margin: 0 16px;
+  }
+  .push-toggle-label { font-size: 14px; color: var(--deep); font-weight: 500; }
+  .push-toggle-desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .toggle-switch {
+    width: 44px; height: 24px; border-radius: 12px;
+    background: var(--grey-light); position: relative; cursor: pointer;
+    transition: background 0.2s; flex-shrink: 0; border: none;
+  }
+  .toggle-switch.on { background: var(--accent); }
+  .toggle-switch::after {
+    content:''; position:absolute; top:2px; left:2px;
+    width:20px; height:20px; border-radius:50%; background:white;
+    transition: left 0.2s; box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  }
+  .toggle-switch.on::after { left: 22px; }
+
+  /* ── SUMMARY ── */
+  .summary-card { margin: 0 16px; background: var(--deep); border-radius: 16px; padding: 20px; color: var(--cream); }
+  .summary-title { font-family: 'Cormorant Garamond', serif; font-size: 19px; font-weight: 300; color: var(--rose); margin-bottom: 13px; letter-spacing: 1px; }
+  .summary-row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 13px; }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-key { color: var(--muted); }
+  .summary-val { color: var(--cream); font-weight: 500; text-align: right; max-width: 58%; }
+  .summary-total .summary-val { color: var(--rose); font-family: 'Cormorant Garamond', serif; font-size: 20px; }
+
+  /* ── CTA BUTTON ── */
+  .cta-btn {
+    display: block; width: calc(100% - 32px); margin: 13px 16px 0;
+    padding: 15px; background: var(--accent); color: var(--white); border: none;
+    border-radius: 13px; font-family: 'DM Sans', sans-serif; font-size: 14px;
+    font-weight: 500; letter-spacing: 1px; text-transform: uppercase;
+    cursor: pointer; transition: all 0.2s; text-align: center;
+  }
+  .cta-btn:active { transform: scale(0.98); background: #BE4F6E; }
+  .cta-btn:disabled { background: var(--grey-mid); pointer-events: none; }
+  .cta-btn.ghost { background: transparent; color: var(--muted); box-shadow: none; margin-top: 8px; }
+  .cta-btn.ghost:active { background: transparent; }
+
+  /* ── STEP INDICATOR ── */
+  .step-indicator { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 16px 20px 6px; }
+  .step-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); transition: all 0.2s; }
+  .step-dot.active { background: var(--accent); width: 22px; border-radius: 4px; }
+  .step-dot.done { background: var(--gold); }
+
+  /* ── BOOKING CARDS ── */
+  .bookings-list { padding: 0 16px; display: flex; flex-direction: column; gap: 12px; }
+  .booking-card {
+    background: var(--white); border-radius: 14px; padding: 14px 15px;
+    box-shadow: var(--shadow); border-left: 4px solid var(--accent); position: relative;
+  }
+  .booking-card.upcoming { border-left-color: var(--gold); }
+  .booking-card.done { border-left-color: #7BC47F; }
+  .booking-card.cancelled { border-left-color: var(--grey-mid); opacity: 0.55; }
+  .booking-date { font-family: 'Cormorant Garamond', serif; font-size: 18px; color: var(--deep); }
+  .booking-service { font-size: 13px; color: var(--accent); margin-top: 3px; font-weight: 500; }
+  .booking-info { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .booking-status {
+    position: absolute; top: 13px; right: 13px;
+    font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 20px;
+  }
+  .status-upcoming { background: #FFE8F2; color: var(--gold); }
+  .status-done { background: #EDF5ED; color: #5A8A5A; }
+  .status-cancelled { background: #F5F0F2; color: #B06070; }
+
+  /* ── SUCCESS ── */
+  .success-screen { display: none; text-align: center; padding: 52px 26px; animation: fadeUp 0.4s ease; }
+  .success-screen.show { display: block; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+  .success-icon { font-size: 66px; margin-bottom: 18px; animation: pop 0.5s ease 0.1s both; }
+  @keyframes pop { 0%{transform:scale(0);} 70%{transform:scale(1.15);} 100%{transform:scale(1);} }
+  .success-title { font-family:'Cormorant Garamond',serif; font-size:30px; font-weight:300; color:var(--deep); margin-bottom:10px; }
+  .success-text { font-size:14px; color:var(--muted); line-height:1.65; }
+
+  /* ── LEGEND ── */
+  .legend { display:flex; gap:16px; padding:10px 20px; font-size:11px; color:var(--muted); }
+  .legend-item { display:flex; align-items:center; gap:5px; }
+  .dot { width:6px; height:6px; border-radius:50%; display:inline-block; }
+  .dot-gold { background:var(--gold); }
+  .dot-accent { background:var(--accent); }
+
+  /* ── TOAST ── */
+  .toast {
+    position:fixed; top:82px; left:50%;
+    transform:translateX(-50%) translateY(-16px);
+    background:var(--deep); color:var(--cream);
+    padding:10px 20px; border-radius:20px; font-size:13px;
+    opacity:0; transition:all 0.28s; z-index:999; white-space:nowrap; pointer-events:none;
+  }
+  .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+  /* ── DIVIDER ── */
+  .divider { height:1px; background:var(--border); margin:13px 16px; }
+
+  /* ── EMPTY STATE ── */
+  .empty-state { text-align:center; padding:48px 28px; color:var(--muted); }
+  .empty-state-icon { font-size:46px; margin-bottom:13px; }
+  .empty-state-text { font-size:14px; line-height:1.55; }
+
+  /* ── MASTER TABS ── */
+  .master-tabs {
+    display:flex; gap:0; margin:14px 16px 0;
+    background:var(--grey-light); border-radius:12px; padding:3px;
+  }
+  .master-tab {
+    flex:1; text-align:center; padding:9px 4px;
+    border-radius:10px; font-size:12px; font-weight:500;
+    color:var(--muted); cursor:pointer; transition:all 0.2s;
+    border:none; background:none; font-family:'DM Sans',sans-serif;
+  }
+  .master-tab.active { background:var(--white); color:var(--accent); box-shadow:0 2px 8px rgba(0,0,0,0.08); }
+
+  /* ── MASTER SCHEDULE ── */
+  .schedule-slots { padding: 14px 16px 0; }
+  .schedule-slots-title { font-size:11px; color:var(--muted); letter-spacing:1.5px; text-transform:uppercase; margin-bottom:10px; }
+  .schedule-slots-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+
+  .master-slot {
+    padding: 9px 4px; border-radius: 10px; text-align: center;
+    font-size: 13px; font-weight: 500; position: relative;
+    border: 1.5px solid;
+  }
+  .master-slot.free-slot { background:#EDF7EE; border-color:#7BC47F; color:#3A7A3E; }
+  .master-slot.booked-slot { background:#FFF0F5; border-color:var(--rose); color:var(--accent); }
+  .slot-del-btn {
+    position:absolute; top:-6px; right:-6px;
+    background:var(--accent); color:white;
+    width:17px; height:17px; border-radius:50%;
+    font-size:10px; display:flex; align-items:center; justify-content:center;
+    border:none; cursor:pointer; line-height:1;
+  }
+
+  .add-slot-panel {
+    margin: 14px 16px 0; background:var(--white);
+    border-radius:14px; padding:16px; box-shadow:var(--shadow);
+  }
+  .add-slot-title { font-family:'Cormorant Garamond',serif; font-size:17px; color:var(--deep); margin-bottom:12px; }
+  .time-picker-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:7px; }
+  .time-pick-btn {
+    padding:9px 2px; border-radius:9px; border:1.5px solid var(--border);
+    background:var(--bg); font-size:13px; color:var(--deep);
+    cursor:pointer; text-align:center; transition:all 0.15s; font-family:'DM Sans',sans-serif;
+  }
+  .time-pick-btn.selected-pick { background:var(--accent); border-color:var(--accent); color:white; }
+  .time-pick-btn.already-added { background:var(--grey-light); color:var(--grey-mid); pointer-events:none; }
+
+  /* ── BOOKING FILTERS ── */
+  .booking-filters { display:flex; gap:8px; padding:4px 16px; overflow-x:auto; }
+  .filter-chip {
+    padding:6px 13px; border-radius:20px; border:1.5px solid var(--border);
+    background:var(--white); font-size:12px; color:var(--muted);
+    cursor:pointer; white-space:nowrap; transition:all 0.15s; flex-shrink:0;
+  }
+  .filter-chip.active { background:var(--accent); border-color:var(--accent); color:white; }
+
+  /* ── NOTIFICATION BADGE ── */
+  .notification-badge {
+    display:none; align-items:center; justify-content:center;
+    background:var(--accent); color:white;
+    width:14px; height:14px; border-radius:50%;
+    font-size:9px; font-weight:700;
+    position:absolute; top:-3px; right:6px;
+  }
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-title">Lash Kapriz</div>
+  <div class="header-sub">Наращивание ресниц</div>
+  <div class="header-addr">📍 Балашиха, Молодёжный бульвар 4/5</div>
+</div>
+
+<!-- ══════════ PAGE: BOOKING ══════════ -->
+<div class="page active" id="page-booking">
+  <div class="step-indicator">
+    <div class="step-dot active" id="step-1"></div>
+    <div class="step-dot" id="step-2"></div>
+    <div class="step-dot" id="step-3"></div>
+  </div>
+
+  <!-- STEP 1 -->
+  <div id="booking-step-1">
+    <div class="section-label">Выберите услугу</div>
+    <div class="services-grid" id="services-list"></div>
+
+    <div class="included-box">
+      <div class="included-title">✓ В стоимость входит бесплатно</div>
+      <div class="included-list">
+        <span class="included-tag">Снятие моей работы</span>
+        <span class="included-tag">Изгибы на выбор</span>
+        <span class="included-tag">Любые эффекты</span>
+        <span class="included-tag">Оттенки</span>
+        <span class="included-tag">Стразы</span>
+      </div>
+    </div>
+
+    <div class="extras-section">
+      <div class="extras-title">Дополнительные услуги</div>
+      <div class="extras-list">
+        <div class="extra-toggle" id="extra-wet" onclick="toggleExtra('wet')">
+          <div class="extra-left">
+            <span style="font-size:20px">💧</span>
+            <div>
+              <div class="extra-name">Мокрый эффект</div>
+              <div class="extra-price">+200 ₽</div>
+            </div>
+          </div>
+          <div class="extra-check" id="check-wet">✓</div>
+        </div>
+        <div class="extra-toggle" id="extra-removal" onclick="toggleExtra('removal')">
+          <div class="extra-left">
+            <span style="font-size:20px">🔄</span>
+            <div>
+              <div class="extra-name">Снятие работы прошлого мастера</div>
+              <div class="extra-price">+300 ₽</div>
+            </div>
+          </div>
+          <div class="extra-check" id="check-removal">✓</div>
+        </div>
+      </div>
+    </div>
+
+    <button class="cta-btn" id="step1-next" onclick="goStep(2)" disabled>Выбрать дату →</button>
+  </div>
+
+  <!-- STEP 2 -->
+  <div id="booking-step-2" style="display:none">
+    <div class="section-label">Дата и время</div>
+    <div class="calendar-wrap">
+      <div class="cal-header">
+        <button class="cal-nav-btn" onclick="changeMonth(-1,'client')">‹</button>
+        <div class="cal-month" id="cal-month-label"></div>
+        <button class="cal-nav-btn" onclick="changeMonth(1,'client')">›</button>
+      </div>
+      <div class="cal-weekdays">
+        <div class="cal-wd">Пн</div><div class="cal-wd">Вт</div><div class="cal-wd">Ср</div>
+        <div class="cal-wd">Чт</div><div class="cal-wd">Пт</div><div class="cal-wd">Сб</div><div class="cal-wd">Вс</div>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><span class="dot dot-gold"></span> Есть окна</div>
+      <div class="legend-item"><span class="dot dot-accent"></span> Выбрано</div>
+    </div>
+    <div class="slots-section" id="slots-section" style="display:none">
+      <div class="slots-title">Доступное время</div>
+      <div class="slots-grid" id="slots-grid"></div>
+    </div>
+    <button class="cta-btn" id="step2-next" onclick="goStep(3)" disabled style="margin-top:14px">Далее →</button>
+    <button class="cta-btn ghost" onclick="goStep(1)">← Назад</button>
+  </div>
+
+  <!-- STEP 3 -->
+  <div id="booking-step-3" style="display:none">
+    <div class="section-label">Ваши данные</div>
+    <div class="form-section">
+      <div class="input-group">
+        <label class="input-label">Имя</label>
+        <input class="input-field" id="client-name" type="text" placeholder="Анна" oninput="updateSummary()">
+      </div>
+      <div class="input-group">
+        <label class="input-label">Телефон</label>
+        <input class="input-field" id="client-phone" type="tel" placeholder="+7 (999) 000-00-00" oninput="updateSummary()">
+      </div>
+      <div class="input-group">
+        <label class="input-label">Комментарий (необязательно)</label>
+        <input class="input-field" id="client-comment" type="text" placeholder="Хочу эффект кошачьего взгляда...">
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="push-toggle-row">
+      <div>
+        <div class="push-toggle-label">🔔 Напомнить за день</div>
+        <div class="push-toggle-desc">Уведомление накануне записи</div>
+      </div>
+      <button class="toggle-switch on" id="push-toggle" onclick="togglePush()"></button>
+    </div>
+    <div class="divider"></div>
+
+    <div class="summary-card">
+      <div class="summary-title">Ваша запись</div>
+      <div class="summary-row"><span class="summary-key">Услуга</span><span class="summary-val" id="sum-service">—</span></div>
+      <div class="summary-row"><span class="summary-key">Дата</span><span class="summary-val" id="sum-date">—</span></div>
+      <div class="summary-row"><span class="summary-key">Время</span><span class="summary-val" id="sum-time">—</span></div>
+      <div class="summary-row"><span class="summary-key">Длительность</span><span class="summary-val" id="sum-duration">—</span></div>
+      <div class="summary-row" id="sum-extras-row" style="display:none">
+        <span class="summary-key">Доп. услуги</span><span class="summary-val" id="sum-extras">—</span>
+      </div>
+      <div class="summary-row summary-total">
+        <span class="summary-key">Итого</span><span class="summary-val" id="sum-price">—</span>
+      </div>
+    </div>
+
+    <button class="cta-btn" onclick="confirmBooking()" style="margin-top:16px">✨ Записаться</button>
+    <button class="cta-btn ghost" onclick="goStep(2)">← Назад</button>
+  </div>
+
+  <!-- SUCCESS -->
+  <div class="success-screen" id="success-screen">
+    <div class="success-icon">🌸</div>
+    <div class="success-title">Вы записаны!</div>
+    <div class="success-text" id="success-text">
+      Мастер получил уведомление о вашей записи.<br>
+      Ждём вас в назначенное время!<br><br>
+      <span style="font-size:12px; color:var(--muted)">📍 Балашиха, Молодёжный бульвар 4/5</span>
+    </div>
+    <button class="cta-btn" style="margin-top:34px; max-width:260px; margin-left:auto; margin-right:auto" onclick="resetBooking()">Записаться снова</button>
+  </div>
+</div>
+
+<!-- ══════════ PAGE: MY BOOKINGS ══════════ -->
+<div class="page" id="page-my">
+  <div class="section-label">Мои записи</div>
+  <div class="bookings-list" id="my-bookings"></div>
+</div>
+
+<!-- ══════════ PAGE: MASTER ══════════ -->
+<div class="page" id="page-admin">
+  <div class="master-tabs">
+    <button class="master-tab active" id="mtab-schedule" onclick="switchMasterTab('schedule')">📅 Расписание</button>
+    <button class="master-tab" id="mtab-bookings" onclick="switchMasterTab('bookings')">📋 Записи</button>
+  </div>
+
+  <!-- SCHEDULE PANEL -->
+  <div id="master-schedule-panel">
+    <div class="section-label">Управление расписанием</div>
+    <div class="section-sub">Выберите дату — добавьте или удалите слоты для записи клиентов.</div>
+
+    <div class="calendar-wrap">
+      <div class="cal-header">
+        <button class="cal-nav-btn" onclick="changeMonth(-1,'master')">‹</button>
+        <div class="cal-month" id="master-cal-month-label"></div>
+        <button class="cal-nav-btn" onclick="changeMonth(1,'master')">›</button>
+      </div>
+      <div class="cal-weekdays">
+        <div class="cal-wd">Пн</div><div class="cal-wd">Вт</div><div class="cal-wd">Ср</div>
+        <div class="cal-wd">Чт</div><div class="cal-wd">Пт</div><div class="cal-wd">Сб</div><div class="cal-wd">Вс</div>
+      </div>
+      <div class="cal-grid" id="master-cal-grid"></div>
+    </div>
+
+    <div id="master-slots-panel" style="display:none">
+      <div class="schedule-slots">
+        <div class="schedule-slots-title" id="master-slots-date-label">Слоты на выбранный день</div>
+        <div class="schedule-slots-grid" id="master-slots-grid"></div>
+      </div>
+
+      <div class="add-slot-panel">
+        <div class="add-slot-title">+ Добавить слоты</div>
+        <div class="time-picker-grid" id="time-picker-grid"></div>
+        <button class="cta-btn" onclick="saveNewSlots()" style="margin:12px 0 0; width:100%;">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOOKINGS PANEL -->
+  <div id="master-bookings-panel" style="display:none">
+    <div class="section-label">Все записи</div>
+    <div class="booking-filters" id="booking-filters">
+      <button class="filter-chip active" onclick="filterBookings('all',this)">Все</button>
+      <button class="filter-chip" onclick="filterBookings('upcoming',this)">Предстоящие</button>
+      <button class="filter-chip" onclick="filterBookings('done',this)">Выполненные</button>
+      <button class="filter-chip" onclick="filterBookings('cancelled',this)">Отменённые</button>
+    </div>
+    <div style="height:10px"></div>
+    <div class="bookings-list" id="admin-bookings"></div>
+  </div>
+</div>
+
+<!-- ══════════ BOTTOM NAV ══════════ -->
+<div class="bottom-nav">
+  <button class="nav-btn active" id="nav-booking" onclick="showPage('booking')">
+    <span class="nav-icon">✦</span><span>Запись</span>
+  </button>
+  <button class="nav-btn" id="nav-my" onclick="showPage('my')">
+    <span class="nav-icon">◈</span><span>Мои записи</span>
+  </button>
+  <button class="nav-btn master-only" id="nav-admin" onclick="showPage('admin')">
+    <span style="position:relative; display:inline-block">
+      <span class="nav-icon">◉</span>
+      <span class="notification-badge" id="new-badge">!</span>
+    </span>
+    <span>Мастер</span>
+  </button>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// TELEGRAM INIT
+// ═══════════════════════════════════════════
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.ready(); tg.expand(); tg.setHeaderColor('#434343'); tg.setBackgroundColor('#F8F8F8'); }
+
+const userId   = tg?.initDataUnsafe?.user?.id?.toString() || 'demo_user';
+const userName = tg?.initDataUnsafe?.user?.first_name || 'Гость';
+
+// ⚠️  ВАЖНО: замените на реальный Telegram ID мастера (числовой, в виде строки)
+const OWNER_ID = 'YOUR_OWNER_TELEGRAM_ID';
+
+// Определяем роль. Для теста в браузере: поменяй 'demo_user' на 'demo_master'
+const isMaster = (userId === OWNER_ID || userId === 'demo_master');
+
+if (isMaster) {
+  document.querySelectorAll('.master-only').forEach(el => el.style.display = 'flex');
+}
+
+// ═══════════════════════════════════════════
+// ДАННЫЕ
+// ═══════════════════════════════════════════
+const SERVICES = [
+  { id:'s1', name:'Классика', desc:'1D · натуральный эффект',  price:1300, duration:'2 ч',   icon:'✨' },
+  { id:'s2', name:'1.5D',     desc:'1.5D · лёгкий объём',     price:1500, duration:'2 ч',   icon:'🌸' },
+  { id:'s3', name:'2D',       desc:'2D · объёмный эффект',     price:1800, duration:'2.5 ч', icon:'🌟' },
+  { id:'s4', name:'3D',       desc:'3D · пышный объём',        price:2100, duration:'2.5 ч', icon:'💫' },
+  { id:'s5', name:'4D',       desc:'4D · максимальный объём',  price:2400, duration:'3 ч',   icon:'👑' },
+];
+
+const EXTRAS = {
+  wet:     { name:'Мокрый эффект',                  price:200 },
+  removal: { name:'Снятие работы прошлого мастера', price:300 },
+};
+
+const ALL_TIMES = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
+
+// ═══════════════════════════════════════════
+// ХРАНИЛИЩЕ
+// ═══════════════════════════════════════════
+let bookings = JSON.parse(localStorage.getItem('lk_bookings') || '[]');
+let schedule = JSON.parse(localStorage.getItem('lk_schedule') || '{}'); // { 'YYYY-MM-DD': ['10:00',...] }
+
+function saveBookings() { localStorage.setItem('lk_bookings', JSON.stringify(bookings)); }
+function saveSchedule()  { localStorage.setItem('lk_schedule', JSON.stringify(schedule)); }
+
+// Демо-расписание: следующие 7 дней
+(function seedSchedule() {
+  if (Object.keys(schedule).length) return;
+  const today = new Date();
+  for (let i = 1; i <= 7; i++) {
+    const d = new Date(today); d.setDate(d.getDate() + i);
+    if (d.getDay() === 0) continue;
+    schedule[fmtDate(d)] = ['10:00','12:00','14:00','16:00','18:00'];
+  }
+  saveSchedule();
+})();
+
+// Демо-записи
+(function seedBookings() {
+  if (bookings.length) return;
+  const today = new Date();
+  const past  = new Date(today); past.setDate(past.getDate() - 4);
+  const fut   = new Date(today); fut.setDate(fut.getDate() + 2);
+  bookings = [
+    { id:'demo1', userId, service:'Классика', date:fmtDate(past), time:'14:00', duration:'2 ч',   price:1300, extras:null,             name:userName, phone:'+7 (999) 123-45-67', comment:'', pushEnabled:false, status:'done',     createdAt:past.toISOString() },
+    { id:'demo2', userId, service:'2D',       date:fmtDate(fut),  time:'12:00', duration:'2.5 ч', price:2000, extras:'Мокрый эффект',   name:userName, phone:'+7 (999) 123-45-67', comment:'', pushEnabled:true,  status:'upcoming', createdAt:new Date().toISOString() },
+  ];
+  saveBookings();
+})();
+
+// ═══════════════════════════════════════════
+// УТИЛИТЫ
+// ═══════════════════════════════════════════
+function fmtDate(d)  { return d.toISOString().split('T')[0]; }
+function fmtDisplay(s) {
+  const [y,m,d] = s.split('-');
+  const M = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+  return `${parseInt(d)} ${M[parseInt(m)-1]} ${y}`;
+}
+function getBooked(dateStr) { return bookings.filter(b=>b.date===dateStr&&b.status!=='cancelled').map(b=>b.time); }
+function getFree(dateStr)   { return (schedule[dateStr]||[]).filter(t=>!getBooked(dateStr).includes(t)); }
+
+// ═══════════════════════════════════════════
+// СОСТОЯНИЕ BOOKING
+// ═══════════════════════════════════════════
+let selService = null, selDate = null, selTime = null;
+let selExtras  = {}, pushOn = true;
+let clientMonth = new Date(); clientMonth.setDate(1);
+
+// ═══════════════════════════════════════════
+// УСЛУГИ
+// ═══════════════════════════════════════════
+function renderServices() {
+  document.getElementById('services-list').innerHTML = SERVICES.map(s => `
+    <div class="service-card ${selService?.id===s.id?'selected':''}" onclick="pickService('${s.id}')">
+      <div class="service-icon">${s.icon}</div>
+      <div class="service-info">
+        <div class="service-name">${s.name}</div>
+        <div class="service-desc">${s.desc} · ${s.duration}</div>
+      </div>
+      <div class="service-price">${s.price.toLocaleString('ru')} ₽</div>
+    </div>`).join('');
+}
+
+function pickService(id) {
+  selService = SERVICES.find(s=>s.id===id);
+  renderServices();
+  document.getElementById('step1-next').disabled = false;
+  updateSummary();
+}
+
+// ═══════════════════════════════════════════
+// ДОП. УСЛУГИ
+// ═══════════════════════════════════════════
+function toggleExtra(key) {
+  selExtras[key] = !selExtras[key];
+  document.getElementById('extra-'+key).classList.toggle('active', !!selExtras[key]);
+  updateSummary();
+}
+function extrasTotal() { return Object.entries(selExtras).filter(([,v])=>v).reduce((s,[k])=>s+EXTRAS[k].price,0); }
+function extrasNames() { return Object.entries(selExtras).filter(([,v])=>v).map(([k])=>EXTRAS[k].name).join(', '); }
+
+// ═══════════════════════════════════════════
+// КЛИЕНТСКИЙ КАЛЕНДАРЬ
+// ═══════════════════════════════════════════
+function renderClientCalendar() {
+  const MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+  document.getElementById('cal-month-label').textContent = MONTHS[clientMonth.getMonth()]+' '+clientMonth.getFullYear();
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const yr = clientMonth.getFullYear(), mo = clientMonth.getMonth();
+  const first = new Date(yr,mo,1), last = new Date(yr,mo+1,0);
+  let off = first.getDay()-1; if(off<0) off=6;
+
+  let h = '<div class="cal-day empty"></div>'.repeat(off);
+  for (let d=1; d<=last.getDate(); d++) {
+    const date = new Date(yr,mo,d), ds = fmtDate(date);
+    const past  = date < today;
+    const today_ = date.getTime()===today.getTime();
+    const sel   = ds===selDate;
+    const free  = getFree(ds);
+    const hasSlots = !past && free.length>0;
+    let cls = 'cal-day'+(past?' past':'')+(sel?' selected':today_?' today':'')+(hasSlots&&!sel?' has-slots':'');
+    const click = !past ? `onclick="clientPickDate('${ds}')"` : '';
+    h += `<div class="${cls}" ${click}>${d}</div>`;
+  }
+  document.getElementById('cal-grid').innerHTML = h;
+}
+
+function clientPickDate(ds) {
+  selDate = ds; selTime = null;
+  document.getElementById('step2-next').disabled = true;
+  renderClientCalendar();
+  renderClientSlots(ds);
+}
+
+function renderClientSlots(ds) {
+  const sec  = document.getElementById('slots-section');
+  const grid = document.getElementById('slots-grid');
+  const day  = schedule[ds] || [];
+  const bk   = getBooked(ds);
+  sec.style.display = 'block';
+
+  if (!day.length) {
+    grid.innerHTML = `<div class="no-slots-msg">На этот день мастер ещё не открыл запись. Выберите другую дату.</div>`;
+    return;
+  }
+  grid.innerHTML = day.map(t => {
+    const booked = bk.includes(t);
+    const isSel  = t === selTime;
+    return `<button class="slot-btn ${isSel?'selected':''} ${booked?'booked':''}" onclick="clientPickSlot('${t}')">${t}</button>`;
+  }).join('');
+}
+
+function clientPickSlot(t) {
+  selTime = t;
+  document.getElementById('step2-next').disabled = false;
+  renderClientSlots(selDate);
+}
+
+// ═══════════════════════════════════════════
+// ШАГИ
+// ═══════════════════════════════════════════
+function goStep(n) {
+  [1,2,3].forEach(i => {
+    document.getElementById('booking-step-'+i).style.display = i===n?'block':'none';
+    const dot = document.getElementById('step-'+i);
+    dot.className = 'step-dot'+(i<n?' done':i===n?' active':'');
+  });
+  if (n===2) renderClientCalendar();
+  if (n===3) updateSummary();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+// ═══════════════════════════════════════════
+// СВОДКА
+// ═══════════════════════════════════════════
+function updateSummary() {
+  if (!selService) return;
+  const et = extrasTotal(), en = extrasNames(), total = selService.price + et;
+  document.getElementById('sum-service').textContent  = selService.name;
+  document.getElementById('sum-date').textContent     = selDate ? fmtDisplay(selDate) : '—';
+  document.getElementById('sum-time').textContent     = selTime || '—';
+  document.getElementById('sum-duration').textContent = selService.duration;
+  const er = document.getElementById('sum-extras-row');
+  if (en) { er.style.display='flex'; document.getElementById('sum-extras').textContent=en; }
+  else    { er.style.display='none'; }
+  document.getElementById('sum-price').textContent = total.toLocaleString('ru')+' ₽';
+}
+
+// ═══════════════════════════════════════════
+// PUSH
+// ═══════════════════════════════════════════
+function togglePush() {
+  pushOn = !pushOn;
+  document.getElementById('push-toggle').classList.toggle('on', pushOn);
+}
+
+function schedulePush(booking) {
+  if (!booking.pushEnabled || !('Notification' in window)) return;
+  Notification.requestPermission().then(p => {
+    if (p !== 'granted') return;
+    const bookingDt  = new Date(booking.date + 'T' + booking.time);
+    const reminderDt = new Date(bookingDt.getTime() - 24*60*60*1000);
+    const delay = reminderDt.getTime() - Date.now();
+    if (delay > 0 && delay < 7*24*60*60*1000) {
+      setTimeout(() => {
+        new Notification('🌸 Lash Kapriz — напоминание', {
+          body: `Завтра в ${booking.time} — «${booking.service}».\n📍 Балашиха, Молодёжный бульвар 4/5`,
+          icon: 'https://em-content.zobj.net/thumbs/120/apple/354/cherry-blossom_1f338.png'
+        });
+      }, delay);
+    }
+  });
+}
+
+// ═══════════════════════════════════════════
+// ПОДТВЕРЖДЕНИЕ ЗАПИСИ
+// ═══════════════════════════════════════════
+function confirmBooking() {
+  const name    = document.getElementById('client-name').value.trim();
+  const phone   = document.getElementById('client-phone').value.trim();
+  const comment = document.getElementById('client-comment').value.trim();
+  if (!name)  { showToast('Введите ваше имя');  return; }
+  if (!phone) { showToast('Введите телефон'); return; }
+
+  const et = extrasTotal(), en = extrasNames();
+  const booking = {
+    id: 'b'+Date.now(), userId,
+    service:   selService.name, serviceId: selService.id,
+    date:      selDate,  time: selTime,
+    duration:  selService.duration,
+    price:     selService.price + et, basePrice: selService.price,
+    extras:    en || null,
+    name, phone, comment,
+    pushEnabled: pushOn,
+    status: 'upcoming',
+    createdAt: new Date().toISOString()
+  };
+
+  bookings.push(booking);
+  saveBookings();
+
+  // Показать badge мастеру
+  document.getElementById('new-badge').style.display = 'inline-flex';
+
+  schedulePush(booking);
+  notifyOwner(booking);
+  if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+
+  const pushLine = pushOn
+    ? '<br><span style="font-size:12px;color:var(--gold)">🔔 Напоминание придёт за день до записи</span>' : '';
+  document.getElementById('success-text').innerHTML =
+    `Мастер получил уведомление о вашей записи.<br>Ждём вас в назначенное время!${pushLine}<br><br>
+     <span style="font-size:12px;color:var(--muted)">📍 Балашиха, Молодёжный бульвар 4/5</span>`;
+
+  document.getElementById('booking-step-3').style.display = 'none';
+  document.getElementById('success-screen').classList.add('show');
+
+  if (tg?.MainButton) {
+    tg.MainButton.setText('Закрыть'); tg.MainButton.show();
+    tg.MainButton.onClick(()=>tg.close());
+  }
+}
+
+async function notifyOwner(b) {
+  try {
+    const response = await fetch('/api/book', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(b)
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.log('Server error:', data);
+      showToast('Не удалось отправить запись мастеру');
+    }
+  } catch (e) {
+    console.log('Notify failed', e);
+    showToast('Ошибка соединения с сервером');
+  }
+}
+
+function resetBooking() {
+  selService=null; selDate=null; selTime=null; selExtras={}; pushOn=true;
+  document.getElementById('success-screen').classList.remove('show');
+  document.getElementById('client-name').value='';
+  document.getElementById('client-phone').value='';
+  document.getElementById('client-comment').value='';
+  document.getElementById('slots-section').style.display='none';
+  document.getElementById('step2-next').disabled=true;
+  document.getElementById('step1-next').disabled=true;
+  document.getElementById('push-toggle').classList.add('on');
+  document.querySelectorAll('.extra-toggle').forEach(el=>el.classList.remove('active'));
+  renderServices(); goStep(1);
+}
+
+// ═══════════════════════════════════════════
+// МОИ ЗАПИСИ
+// ═══════════════════════════════════════════
+function renderMyBookings() {
+  const el   = document.getElementById('my-bookings');
+  const mine = bookings.filter(b=>b.userId===userId).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  if (!mine.length) {
+    el.innerHTML=`<div class="empty-state"><div class="empty-state-icon">🌸</div>
+      <div class="empty-state-text">Записей пока нет.<br>Записаться можно во вкладке «Запись».</div></div>`; return;
+  }
+  const SM = { upcoming:['Предстоящая','status-upcoming'], done:['Выполнена','status-done'], cancelled:['Отменена','status-cancelled'] };
+  el.innerHTML = mine.map(b => {
+    const [lbl,cls] = SM[b.status]||['—',''];
+    const pushLine = (b.pushEnabled && b.status==='upcoming')
+      ? `<div class="booking-info" style="color:var(--gold)">🔔 Напоминание за день</div>` : '';
+    return `<div class="booking-card ${b.status}">
+      <div class="booking-date">${fmtDisplay(b.date)}</div>
+      <div class="booking-service">${b.service}</div>
+      <div class="booking-info">⏰ ${b.time} · ${b.duration} · ${b.price.toLocaleString('ru')} ₽</div>
+      ${b.extras?`<div class="booking-info" style="color:var(--accent)">✨ ${b.extras}</div>`:''}
+      ${pushLine}
+      <div class="booking-status ${cls}">${lbl}</div>
+      ${b.status==='upcoming'?`<button onclick="clientCancel('${b.id}')"
+        style="margin-top:10px;background:none;border:1px solid #EEE;padding:6px 13px;
+               border-radius:8px;color:var(--muted);font-size:12px;cursor:pointer;">Отменить</button>`:''}
+    </div>`;
+  }).join('');
+}
+
+function clientCancel(id) {
+  const b = bookings.find(x=>x.id===id); if(!b) return;
+  b.status='cancelled'; saveBookings(); showToast('Запись отменена'); renderMyBookings();
+}
+
+// ═══════════════════════════════════════════
+// МАСТЕР — РАСПИСАНИЕ
+// ═══════════════════════════════════════════
+let masterMonth = new Date(); masterMonth.setDate(1);
+let masterDate  = null;
+let pickedSlots = new Set(); // слоты, выбранные в пикере для добавления
+
+function renderMasterCalendar() {
+  const MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+  document.getElementById('master-cal-month-label').textContent = MONTHS[masterMonth.getMonth()]+' '+masterMonth.getFullYear();
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const yr=masterMonth.getFullYear(), mo=masterMonth.getMonth();
+  const first=new Date(yr,mo,1), last=new Date(yr,mo+1,0);
+  let off=first.getDay()-1; if(off<0) off=6;
+
+  let h='<div class="m-cal-day empty"></div>'.repeat(off);
+  for(let d=1;d<=last.getDate();d++) {
+    const date=new Date(yr,mo,d), ds=fmtDate(date);
+    const past=date<today, today_=date.getTime()===today.getTime(), sel=ds===masterDate;
+    const hasSlots=(schedule[ds]||[]).length>0;
+    let cls='m-cal-day'+(past?' past':'')+(sel?' selected':today_?' today':'')+(hasSlots&&!sel?' has-slots':'');
+    const click=!past?`onclick="masterPickDate('${ds}')"`:'' ;
+    h+=`<div class="${cls}" ${click}>${d}</div>`;
+  }
+  document.getElementById('master-cal-grid').innerHTML=h;
+}
+
+function masterPickDate(ds) {
+  masterDate=ds; pickedSlots=new Set();
+  renderMasterCalendar();
+  renderMasterSlots();
+  document.getElementById('master-slots-panel').style.display='block';
+  setTimeout(()=>document.getElementById('master-slots-panel').scrollIntoView({behavior:'smooth',block:'nearest'}),80);
+}
+
+function renderMasterSlots() {
+  if (!masterDate) return;
+  const existing = schedule[masterDate] || [];
+  const booked   = getBooked(masterDate);
+  document.getElementById('master-slots-date-label').textContent = 'Слоты: ' + fmtDisplay(masterDate);
+
+  // Current slots
+  const sg = document.getElementById('master-slots-grid');
+  if (!existing.length) {
+    sg.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:14px;color:var(--muted);font-size:13px">Слотов нет — добавьте ниже</div>`;
+  } else {
+    sg.innerHTML = existing.map(t => {
+      const isBk = booked.includes(t);
+      const cls  = 'master-slot '+(isBk?'booked-slot':'free-slot');
+      const del  = isBk ? '' : `<button class="slot-del-btn" onclick="delSlot('${t}')">✕</button>`;
+      return `<div class="${cls}">${t}${del}</div>`;
+    }).join('');
+  }
+
+  // Time picker
+  const pg = document.getElementById('time-picker-grid');
+  pg.innerHTML = ALL_TIMES.map(t => {
+    const exists = existing.includes(t);
+    const picked = pickedSlots.has(t);
+    let cls = 'time-pick-btn'+(exists?' already-added':picked?' selected-pick':'');
+    return `<button class="${cls}" onclick="togglePickSlot('${t}')" ${exists?'disabled':''}>${t}</button>`;
+  }).join('');
+}
+
+function togglePickSlot(t) {
+  if (pickedSlots.has(t)) pickedSlots.delete(t);
+  else pickedSlots.add(t);
+  renderMasterSlots();
+}
+
+function delSlot(t) {
+  const bk = getBooked(masterDate);
+  if (bk.includes(t)) { showToast('Нельзя удалить — слот уже занят'); return; }
+  schedule[masterDate] = (schedule[masterDate]||[]).filter(s=>s!==t);
+  pickedSlots.delete(t);
+  saveSchedule(); renderMasterSlots(); renderMasterCalendar();
+  showToast('Слот удалён');
+}
+
+function saveNewSlots() {
+  if (!masterDate || !pickedSlots.size) { showToast('Выберите хотя бы один слот'); return; }
+  const existing = new Set(schedule[masterDate]||[]);
+  pickedSlots.forEach(t=>existing.add(t));
+  schedule[masterDate] = [...existing].sort();
+  pickedSlots = new Set(schedule[masterDate]);
+  saveSchedule(); renderMasterSlots(); renderMasterCalendar();
+  showToast('✅ Слоты сохранены');
+}
+
+// ═══════════════════════════════════════════
+// МАСТЕР — ВСЕ ЗАПИСИ
+// ═══════════════════════════════════════════
+let activeFilter = 'all';
+
+function filterBookings(f, el) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  renderAdminBookings();
+}
+
+function renderAdminBookings() {
+  const el  = document.getElementById('admin-bookings');
+  let list  = [...bookings].sort((a,b)=>new Date(a.date)-new Date(b.date));
+  if (activeFilter!=='all') list=list.filter(b=>b.status===activeFilter);
+  if (!list.length) {
+    el.innerHTML=`<div class="empty-state"><div class="empty-state-icon">📋</div>
+      <div class="empty-state-text">Записей нет.</div></div>`; return;
+  }
+  const SM={upcoming:['Предстоящая','status-upcoming'],done:['Выполнена','status-done'],cancelled:['Отменена','status-cancelled']};
+  el.innerHTML=list.map(b=>{
+    const [lbl,cls]=SM[b.status]||['—',''];
+    return `<div class="booking-card ${b.status}">
+      <div class="booking-date">${fmtDisplay(b.date)} · ${b.time}</div>
+      <div class="booking-service">${b.service}</div>
+      <div class="booking-info">👤 ${b.name} · 📞 ${b.phone}</div>
+      <div class="booking-info">⏱ ${b.duration} · 💰 ${b.price.toLocaleString('ru')} ₽</div>
+      ${b.extras?`<div class="booking-info" style="color:var(--accent)">✨ ${b.extras}</div>`:''}
+      ${b.comment?`<div class="booking-info" style="font-style:italic">💬 ${b.comment}</div>`:''}
+      ${b.pushEnabled?`<div class="booking-info" style="color:var(--gold)">🔔 Напоминание включено</div>`:''}
+      <div class="booking-status ${cls}">${lbl}</div>
+      ${b.status==='upcoming'?`
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button onclick="adminStatus('${b.id}','done')"
+            style="flex:1;background:var(--cream);border:1px solid var(--border);
+                   padding:7px;border-radius:8px;font-size:12px;cursor:pointer;color:var(--deep)">✅ Выполнено</button>
+          <button onclick="adminStatus('${b.id}','cancelled')"
+            style="flex:1;background:var(--cream);border:1px solid var(--border);
+                   padding:7px;border-radius:8px;font-size:12px;cursor:pointer;color:var(--deep)">❌ Отменить</button>
+        </div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function adminStatus(id,status) {
+  const b=bookings.find(x=>x.id===id); if(!b) return;
+  b.status=status; saveBookings();
+  showToast(status==='done'?'✅ Выполнено':'❌ Отменено');
+  renderAdminBookings();
+}
+
+// ═══════════════════════════════════════════
+// MASTER TABS
+// ═══════════════════════════════════════════
+function switchMasterTab(tab) {
+  document.getElementById('master-schedule-panel').style.display = tab==='schedule'?'block':'none';
+  document.getElementById('master-bookings-panel').style.display = tab==='bookings'?'block':'none';
+  document.getElementById('mtab-schedule').classList.toggle('active', tab==='schedule');
+  document.getElementById('mtab-bookings').classList.toggle('active', tab==='bookings');
+  if (tab==='schedule') renderMasterCalendar();
+  if (tab==='bookings') renderAdminBookings();
+}
+
+// ═══════════════════════════════════════════
+// НАВИГАЦИЯ
+// ═══════════════════════════════════════════
+function changeMonth(dir, ctx) {
+  if (ctx==='client') {
+    clientMonth.setMonth(clientMonth.getMonth()+dir);
+    selDate=null; selTime=null;
+    document.getElementById('slots-section').style.display='none';
+    document.getElementById('step2-next').disabled=true;
+    renderClientCalendar();
+  } else {
+    masterMonth.setMonth(masterMonth.getMonth()+dir);
+    masterDate=null;
+    document.getElementById('master-slots-panel').style.display='none';
+    renderMasterCalendar();
+  }
+}
+
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.getElementById('nav-'+page).classList.add('active');
+  if (page==='my')    renderMyBookings();
+  if (page==='admin') { document.getElementById('new-badge').style.display='none'; renderMasterCalendar(); switchMasterTab('schedule'); }
+  if (page==='booking') document.getElementById('success-screen').classList.remove('show');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ═══════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════
+function showToast(msg) {
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),2600);
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+renderServices();
+goStep(1);
+if (userName && userName!=='Гость') document.getElementById('client-name').value=userName;
+</script>
+</body>
+</html>
