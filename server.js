@@ -8,8 +8,16 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+let schedule = {};
+
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const OWNER_CHAT_ID = process.env.OWNER_CHAT_ID;
+
+function isMasterRequest(req) {
+  const ownerId = process.env.OWNER_ID;
+  const userId = String(req.body.userId || req.query.userId || '');
+  return ownerId && userId === ownerId;
+}
 
 function fmtDisplay(dateStr) {
   const [y, m, d] = dateStr.split('-');
@@ -17,6 +25,62 @@ function fmtDisplay(dateStr) {
   return `${parseInt(d)} ${months[parseInt(m) - 1]} ${y}`;
 }
 
+app.get('/api/schedule', (req, res) => {
+  res.json({ ok: true, schedule });
+});
+
+app.post('/api/schedule', (req, res) => {
+  if (!isMasterRequest(req)) {
+    return res.status(403).json({
+      ok: false,
+      error: 'Только мастер может менять расписание'
+    });
+  }
+
+  const { date, slots } = req.body;
+
+  if (!date || !Array.isArray(slots)) {
+    return res.status(400).json({
+      ok: false,
+      error: 'Нужны date и slots'
+    });
+  }
+
+  schedule[date] = slots;
+  res.json({ ok: true, schedule });
+});
+
+app.post('/api/schedule/delete-slot', (req, res) => {
+  if (!isMasterRequest(req)) {
+    return res.status(403).json({
+      ok: false,
+      error: 'Только мастер может менять расписание'
+    });
+  }
+
+  const { date, time } = req.body;
+
+  if (!date || !time) {
+    return res.status(400).json({
+      ok: false,
+      error: 'Нужны date и time'
+    });
+  }
+
+  schedule[date] = (schedule[date] || []).filter(t => t !== time);
+
+  res.json({ ok: true, schedule });
+});
+
+app.get('/api/me', (req, res) => {
+  const userId = String(req.query.userId || '');
+  const ownerId = process.env.OWNER_ID || '';
+
+  res.json({
+    ok: true,
+    isMaster: userId === ownerId
+  });
+});
 app.post('/api/book', async (req, res) => {
   try {
     const b = req.body;

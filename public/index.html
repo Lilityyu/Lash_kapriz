@@ -601,14 +601,19 @@ if (tg) { tg.ready(); tg.expand(); tg.setHeaderColor('#434343'); tg.setBackgroun
 const userId   = tg?.initDataUnsafe?.user?.id?.toString() || 'demo_user';
 const userName = tg?.initDataUnsafe?.user?.first_name || 'Гость';
 
-// ⚠️  ВАЖНО: замените на реальный Telegram ID мастера (числовой, в виде строки)
-const OWNER_ID = 'YOUR_OWNER_TELEGRAM_ID';
+async function checkMasterAccess() {
+  try {
+    const res = await fetch(`/api/me?userId=${encodeURIComponent(userId)}`);
+    const data = await res.json();
 
-// Определяем роль. Для теста в браузере: поменяй 'demo_user' на 'demo_master'
-const isMaster = (userId === OWNER_ID || userId === 'demo_master');
-
-if (isMaster) {
-  document.querySelectorAll('.master-only').forEach(el => el.style.display = 'flex');
+    if (data.ok && data.isMaster) {
+      document.querySelectorAll('.master-only').forEach(el => {
+        el.style.display = 'flex';
+      });
+    }
+  } catch (e) {
+    console.log('Master check failed', e);
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -633,35 +638,21 @@ const ALL_TIMES = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:0
 // ХРАНИЛИЩЕ
 // ═══════════════════════════════════════════
 let bookings = JSON.parse(localStorage.getItem('lk_bookings') || '[]');
-let schedule = JSON.parse(localStorage.getItem('lk_schedule') || '{}'); // { 'YYYY-MM-DD': ['10:00',...] }
+let schedule = {};
 
 function saveBookings() { localStorage.setItem('lk_bookings', JSON.stringify(bookings)); }
-function saveSchedule()  { localStorage.setItem('lk_schedule', JSON.stringify(schedule)); }
 
-// Демо-расписание: следующие 7 дней
-(function seedSchedule() {
-  if (Object.keys(schedule).length) return;
-  const today = new Date();
-  for (let i = 1; i <= 7; i++) {
-    const d = new Date(today); d.setDate(d.getDate() + i);
-    if (d.getDay() === 0) continue;
-    schedule[fmtDate(d)] = ['10:00','12:00','14:00','16:00','18:00'];
+async function loadSchedule() {
+  try {
+    const res = await fetch('/api/schedule');
+    const data = await res.json();
+    if (data.ok) {
+      schedule = data.schedule || {};
+    }
+  } catch (e) {
+    console.log('Schedule load failed', e);
   }
-  saveSchedule();
-})();
-
-// Демо-записи
-(function seedBookings() {
-  if (bookings.length) return;
-  const today = new Date();
-  const past  = new Date(today); past.setDate(past.getDate() - 4);
-  const fut   = new Date(today); fut.setDate(fut.getDate() + 2);
-  bookings = [
-    { id:'demo1', userId, service:'Классика', date:fmtDate(past), time:'14:00', duration:'2 ч',   price:1300, extras:null,             name:userName, phone:'+7 (999) 123-45-67', comment:'', pushEnabled:false, status:'done',     createdAt:past.toISOString() },
-    { id:'demo2', userId, service:'2D',       date:fmtDate(fut),  time:'12:00', duration:'2.5 ч', price:2000, extras:'Мокрый эффект',   name:userName, phone:'+7 (999) 123-45-67', comment:'', pushEnabled:true,  status:'upcoming', createdAt:new Date().toISOString() },
-  ];
-  saveBookings();
-})();
+}
 
 // ═══════════════════════════════════════════
 // УТИЛИТЫ
@@ -1017,23 +1008,79 @@ function togglePickSlot(t) {
   renderMasterSlots();
 }
 
-function delSlot(t) {
+async function delSlot(t) {
   const bk = getBooked(masterDate);
-  if (bk.includes(t)) { showToast('Нельзя удалить — слот уже занят'); return; }
-  schedule[masterDate] = (schedule[masterDate]||[]).filter(s=>s!==t);
-  pickedSlots.delete(t);
-  saveSchedule(); renderMasterSlots(); renderMasterCalendar();
-  showToast('Слот удалён');
+  if (bk.includes(t)) {
+    showToast('Нельзя удалить — слот уже занят');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/schedule/delete-slot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId,
+        date: masterDate,
+        time: t
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      showToast(data.error || 'Не удалось удалить слот');
+      return;
+    }
+
+    schedule = data.schedule || {};
+    pickedSlots.delete(t);
+    renderMasterSlots();
+    renderMasterCalendar();
+    showToast('Слот удалён');
+  } catch (e) {
+    console.log('Delete slot failed', e);
+    showToast('Ошибка соединения');
+  }
 }
 
-function saveNewSlots() {
-  if (!masterDate || !pickedSlots.size) { showToast('Выберите хотя бы один слот'); return; }
-  const existing = new Set(schedule[masterDate]||[]);
-  pickedSlots.forEach(t=>existing.add(t));
-  schedule[masterDate] = [...existing].sort();
-  pickedSlots = new Set(schedule[masterDate]);
-  saveSchedule(); renderMasterSlots(); renderMasterCalendar();
-  showToast('✅ Слоты сохранены');
+async function saveNewSlots() {
+  if (!masterDate || !pickedSlots.size) {
+    showToast('Выберите хотя бы один слот');
+    return;
+  }
+
+  const existing = new Set(schedule[masterDate] || []);
+  pickedSlots.forEach(t => existing.add(t));
+  const newSlots = [...existing].sort();
+
+  try {
+    const res = await fetch('/api/schedule', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId,
+        date: masterDate,
+        slots: newSlots
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      showToast(data.error || 'Не удалось сохранить расписание');
+      return;
+    }
+
+    schedule = data.schedule || {};
+    pickedSlots = new Set(schedule[masterDate] || []);
+    renderMasterSlots();
+    renderMasterCalendar();
+    showToast('✅ Слоты сохранены');
+  } catch (e) {
+    console.log('Save slots failed', e);
+    showToast('Ошибка соединения');
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -1141,9 +1188,16 @@ function showToast(msg) {
 // ═══════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════
-renderServices();
-goStep(1);
-if (userName && userName!=='Гость') document.getElementById('client-name').value=userName;
+r(async function initApp() {
+  await checkMasterAccess();
+  await loadSchedule();
+  renderServices();
+  goStep(1);
+
+  if (userName && userName !== 'Гость') {
+    document.getElementById('client-name').value = userName;
+  }
+})();
 </script>
 </body>
 </html>
